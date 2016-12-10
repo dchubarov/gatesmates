@@ -185,18 +185,18 @@ public final class Registry {
      *  or actual property type is not numeric
      */
     public static Integer queryIntValue(Key key, String valueName) throws RegistryException {
-        // первый запрос возвращает фактический тип значения и требуемый размер буфера
+        // first query returns actual type of the property and necessary buffer size
         int[] info = queryValue0(key, valueName, null);
         if (Api.REG_DWORD != info[0] && Api.REG_DWORD_BIG_ENDIAN != info[0]) {
             throw new RegistryException(RegistryException.VALUE_TYPE_MISMATCH,
                     "Actual property type is not numeric");
         }
 
-        // второй запрос получает значение свойства в буфер
+        // second query actually read value into the buffer
         byte[] data = new byte[info[1]];
         queryValue0(key, valueName, data);
 
-        // преобразуем массив байт в число используя порядок байт соответствующий типу свойства
+        // convert byte array to number according to property byte-order
         return ByteBuffer.wrap(data).order(Api.REG_DWORD_BIG_ENDIAN == info[0] ?
                 ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN).getInt();
     }
