@@ -265,7 +265,21 @@ public final class Registry {
 
         @Override
         public String toString() {
-            return this.getClass().getCanonicalName() + " (hKey = 0x" + Integer.toHexString(handle) + ")";
+            String textualHandle;
+            switch (handle) {
+                case Api.HKEY_CLASSES_ROOT:
+                    textualHandle = "HKEY_CLASSES_ROOT";
+                    break;
+                case Api.HKEY_CURRENT_USER:
+                    textualHandle = "HKEY_CURRENT_USER";
+                    break;
+                case Api.HKEY_LOCAL_MACHINE:
+                    textualHandle = "HKEY_LOCAL_MACHINE";
+                    break;
+                default:
+                    textualHandle = "0x" + Integer.toHexString(handle);
+            }
+            return this.getClass().getCanonicalName() + " (" + textualHandle + ")";
         }
 
         /**
@@ -292,7 +306,7 @@ public final class Registry {
         // Predefined key handles
         //
 
-        //static final int HKEY_CLASSES_ROOT = 0x80000000;
+        static final int HKEY_CLASSES_ROOT = 0x80000000;
         static final int HKEY_CURRENT_USER = 0x80000001;
         static final int HKEY_LOCAL_MACHINE = 0x80000002;
 
