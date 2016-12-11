@@ -18,7 +18,9 @@
 package org.twowls.gatesmates.registry.test;
 
 import org.junit.Before;
+import org.junit.Test;
 import org.twowls.gatesmates.registry.Registry;
+import org.twowls.gatesmates.registry.RegistryException;
 
 import static org.junit.Assume.assumeTrue;
 
@@ -32,5 +34,14 @@ public class RegistryTest {
     @Before
     public void assumeAvailable() {
         assumeTrue(Registry.isAvailable());
+    }
+
+    @Test
+    public void openKeyShouldReturnHandle() {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, "Windows/CurrentVersion")) {
+            System.out.println(key.toString());
+        } catch (RegistryException e) {
+            e.printStackTrace(System.err);
+        }
     }
 }

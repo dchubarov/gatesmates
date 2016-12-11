@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * <p>Provides utility methods to access Windows registry.</p>
+ * <p>Provides utility methods for accessing Windows registry.</p>
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
@@ -38,9 +38,7 @@ public final class Registry {
     /** Registry key for the local machine */
     public static final Key KEY_LOCAL_MACHINE = Key.forHandle(Api.HKEY_LOCAL_MACHINE);
 
-    /**
-     * @return {@code true} if registry is available, otherwise {@code false}.
-     */
+    /** @return {@code true} if registry is available, otherwise {@code false} */
     public static boolean isAvailable() {
         return Platform.isWindows();
     }
@@ -138,7 +136,7 @@ public final class Registry {
      * @param valueName the name of the property being queried
      * @return property value or {@code fallbackValue} if property does not exist
      * @throws RegistryException if registry is not available or property does not exists
-     *  or actual property type is not textual
+     * or actual property type is not textual
      */
     public static String queryStringValue(Key key, String valueName)
             throws RegistryException {
@@ -181,10 +179,10 @@ public final class Registry {
      * @param key registry key previously open with {@link #openKey(Key, String, boolean)}
      * @param valueName the name of the property being queried
      * @return property value or {@code fallbackValue} if property does not exist
-     * @throws RegistryException if registry is not available or property does not exists
-     *  or actual property type is not numeric
+     * @throws RegistryException if registry is not available or property
+     *  does not exists or actual property type is not numeric
      */
-    public static Integer queryIntValue(Key key, String valueName) throws RegistryException {
+    public static int queryIntValue(Key key, String valueName) throws RegistryException {
         // first query returns actual type of the property and necessary buffer size
         int[] info = queryValue0(key, valueName, null);
         if (Api.REG_DWORD != info[0] && Api.REG_DWORD_BIG_ENDIAN != info[0]) {
