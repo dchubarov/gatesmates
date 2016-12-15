@@ -17,8 +17,7 @@
 
 package org.twowls.gatesmates.registry;
 
-import com.sun.jna.Native;
-import com.sun.jna.Platform;
+import org.twowls.gatesmates.util.Gates;
 import org.twowls.gatesmates.util.Handle;
 
 import java.nio.ByteBuffer;
@@ -31,17 +30,14 @@ import java.util.Objects;
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
-public final class Registry {
+public final class Registry implements RegistryConst {
 
     /** Registry key for the current user */
-    public static final Key KEY_CURRENT_USER = Key.forHandle(Api.HKEY_CURRENT_USER);
+    public static final Key KEY_CURRENT_USER = Key.forHandle(HKEY_CURRENT_USER);
     /** Registry key for the local machine */
-    public static final Key KEY_LOCAL_MACHINE = Key.forHandle(Api.HKEY_LOCAL_MACHINE);
+    public static final Key KEY_LOCAL_MACHINE = Key.forHandle(HKEY_LOCAL_MACHINE);
 
-    /** @return {@code true} if registry is available, otherwise {@code false} */
-    public static boolean isAvailable() {
-        return Platform.isWindows();
-    }
+    private static boolean available = Gates.isAvailable();
 
     /**
      * <p>Opens a registry key for reading.</p>
@@ -70,10 +66,10 @@ public final class Registry {
         Objects.requireNonNull(subPath, "Sub key path must not be null");
 
         int[] handleBuffer = createBuffer(0);
-        int err = Api.RegOpenKeyExA(rootKey.handle, toWindowsPath(subPath), Api.REG_OPTION_OPEN_LINK,
-                (forWriting ? Api.KEY_WRITE : Api.KEY_READ) | Api.KEY_WOW64_64KEY, handleBuffer);
+        int err = Gates.AdvApi32.RegOpenKeyExA(rootKey.handle, toWindowsPath(subPath), REG_OPTION_OPEN_LINK,
+                (forWriting ? KEY_WRITE : KEY_READ) | KEY_WOW64_64KEY, handleBuffer);
 
-        if (Api.ERROR_SUCCESS != err) {
+        if (ERROR_SUCCESS != err) {
             throw new RegistryException(err, "Could not open registry key '" + subPath
                     + "' for " + (forWriting ? "writing" : "reading"));
         }
@@ -93,7 +89,7 @@ public final class Registry {
         try {
             return queryUnnamedValue(key);
         } catch (RegistryException e) {
-            if (Api.ERROR_NOT_FOUND == e.getErrorCode()) {
+            if (ERROR_NOT_FOUND == e.getErrorCode()) {
                 return fallbackValue;
             }
             throw e;
@@ -123,7 +119,7 @@ public final class Registry {
         try {
             return queryStringValue(key, valueName);
         } catch (RegistryException e) {
-            if (Api.ERROR_NOT_FOUND == e.getErrorCode()) {
+            if (ERROR_NOT_FOUND == e.getErrorCode()) {
                 return fallbackValue;
             }
             throw e;
@@ -143,7 +139,7 @@ public final class Registry {
 
         // first query returns actual type of the property and necessary buffer size
         int[] info = queryValue0(key, valueName, null);
-        if (Api.REG_SZ != info[0] && Api.REG_EXPAND_SZ != info[0]) {
+        if (REG_SZ != info[0] && REG_EXPAND_SZ != info[0]) {
             throw new RegistryException(RegistryException.VALUE_TYPE_MISMATCH,
                     "Actual property type is not textual");
         }
@@ -167,7 +163,7 @@ public final class Registry {
         try {
             return queryIntValue(key, valueName);
         } catch (RegistryException e) {
-            if (Api.ERROR_NOT_FOUND == e.getErrorCode()) {
+            if (ERROR_NOT_FOUND == e.getErrorCode()) {
                 return fallbackValue;
             }
             throw e;
@@ -185,7 +181,7 @@ public final class Registry {
     public static int queryIntValue(Key key, String valueName) throws RegistryException {
         // first query returns actual type of the property and necessary buffer size
         int[] info = queryValue0(key, valueName, null);
-        if (Api.REG_DWORD != info[0] && Api.REG_DWORD_BIG_ENDIAN != info[0]) {
+        if (REG_DWORD != info[0] && REG_DWORD_BIG_ENDIAN != info[0]) {
             throw new RegistryException(RegistryException.VALUE_TYPE_MISMATCH,
                     "Actual property type is not numeric");
         }
@@ -195,8 +191,16 @@ public final class Registry {
         queryValue0(key, valueName, data);
 
         // convert byte array to number according to property byte-order
-        return ByteBuffer.wrap(data).order(Api.REG_DWORD_BIG_ENDIAN == info[0] ?
+        return ByteBuffer.wrap(data).order(REG_DWORD_BIG_ENDIAN == info[0] ?
                 ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN).getInt();
+    }
+
+    static void forceAvailable() {
+        available = true;
+    }
+
+    static String toWindowsPath(String s) {
+        return (s == null ? null : s.replace('/', '\\'));
     }
 
     private static int[] queryValue0(Key key, String valueName, byte[] buffer) throws RegistryException {
@@ -205,8 +209,8 @@ public final class Registry {
         Objects.requireNonNull(valueName, "Value name must not be null");
 
         int[] typeBuffer = createBuffer(0), sizeBuffer = createBuffer(buffer == null ? 0 : buffer.length);
-        int err = Api.RegQueryValueExA(key.handle, valueName, null, typeBuffer, buffer, sizeBuffer);
-        if (err != Api.ERROR_SUCCESS) {
+        int err = Gates.AdvApi32.RegQueryValueExA(key.handle, valueName, null, typeBuffer, buffer, sizeBuffer);
+        if (err != ERROR_SUCCESS) {
             throw new RegistryException(err, "Failed to query value '" + valueName + "'");
         }
 
@@ -214,7 +218,7 @@ public final class Registry {
     }
 
     private static void checkAvailable() throws RegistryException {
-        if (!isAvailable()) {
+        if (!available) {
             throw new RegistryException(RegistryException.UNAVAILABLE, "Registry is not available");
         }
     }
@@ -230,10 +234,6 @@ public final class Registry {
             }
             return new String(bytes, 0, len);
         }
-    }
-
-    private static String toWindowsPath(String s) {
-        return (s == null ? null : s.replace('/', '\\'));
     }
 
     private static int[] createBuffer(int... values) {
@@ -252,8 +252,8 @@ public final class Registry {
         @Override
         public void close() throws RegistryException {
             try {
-                int result = Api.RegCloseKey(handle);
-                if (Api.ERROR_SUCCESS != result) {
+                int result = Gates.AdvApi32.RegCloseKey(handle);
+                if (ERROR_SUCCESS != result) {
                     throw new RegistryException(result, "Could not close key");
                 }
             } finally {
@@ -265,13 +265,13 @@ public final class Registry {
         public String toString() {
             String textualHandle;
             switch (handle) {
-                case Api.HKEY_CLASSES_ROOT:
+                case HKEY_CLASSES_ROOT:
                     textualHandle = "HKEY_CLASSES_ROOT";
                     break;
-                case Api.HKEY_CURRENT_USER:
+                case HKEY_CURRENT_USER:
                     textualHandle = "HKEY_CURRENT_USER";
                     break;
-                case Api.HKEY_LOCAL_MACHINE:
+                case HKEY_LOCAL_MACHINE:
                     textualHandle = "HKEY_LOCAL_MACHINE";
                     break;
                 default:
@@ -287,82 +287,6 @@ public final class Registry {
          */
         static Key forHandle(int handle) {
             return new Key(handle);
-        }
-    }
-
-    /** System methods and constants */
-    static class Api {
-
-        //
-        // Error codes
-        //
-
-        static final int ERROR_SUCCESS = 0;
-        static final int ERROR_NOT_FOUND = 2;
-
-        //
-        // Predefined key handles
-        //
-
-        static final int HKEY_CLASSES_ROOT = 0x80000000;
-        static final int HKEY_CURRENT_USER = 0x80000001;
-        static final int HKEY_LOCAL_MACHINE = 0x80000002;
-
-        //
-        // Registry value types
-        //
-
-        //static final int REG_NONE = 0;
-        static final int REG_SZ = 1;
-        static final int REG_EXPAND_SZ = 2;
-        //static final int REG_BINARY = 3;
-        static final int REG_DWORD = 4;
-        static final int REG_DWORD_BIG_ENDIAN = 5;
-        //static final int REG_LINK = 6;
-        //static final int REG_MULTI_SZ = 7;
-
-        //
-        // Registry key access mask
-        //
-
-        //static final int KEY_QUERY_VALUE = 0x1;
-        //static final int KEY_SET_VALUE = 0x2;
-        //static final int KEY_CREATE_SUB_KEY = 0x4;
-        //static final int KEY_ENUMERATE_SUB_KEYS = 0x8;
-        //static final int KEY_NOTIFY = 0x10;
-        //static final int KEY_CREATE_LINK = 0x20;
-        static final int KEY_WOW64_64KEY = 0x100;
-        //static final int KEY_WOW64_32KEY = 0x200;
-        //static final int KEY_WOW64_RES = 0x300;
-        static final int KEY_READ = 0x20019;
-        static final int KEY_WRITE = 0x20006;
-
-        //
-        // Registry key open mode mask
-        //
-
-        static final int REG_OPTION_OPEN_LINK = 0x8;
-
-        //
-        // Native methods
-        //
-
-        static native int RegOpenKeyExA(int handle, String path, int options, int access, int[] result);
-
-        static native int RegQueryValueExA(int handle, String value, int[] ignore, int[] type, byte[] data, int[] size);
-
-        static native int RegCloseKey(int handle);
-
-        //
-        // Native library name
-        //
-
-        static final String LIBRARY = "advapi32";
-
-        static {
-            if (isAvailable()) {
-                Native.register(LIBRARY);
-            }
         }
     }
 

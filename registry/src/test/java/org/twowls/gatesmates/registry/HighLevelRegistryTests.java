@@ -15,37 +15,40 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry.test;
+package org.twowls.gatesmates.registry;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.twowls.gatesmates.registry.Registry;
-import org.twowls.gatesmates.registry.RegistryException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assume.assumeFalse;
 
 /**
- * <p>Tests for unavailable registry.</p>
+ * <p>High level registry tests.</p>
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
-public class UnavailableRegistryTest {
+public abstract class HighLevelRegistryTests {
 
-    @Before
-    public void assumeUnavailable() {
-        assumeFalse(Registry.isAvailable());
+    static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
+    static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
+
+    @Test
+    public void openNonExistentKeyShouldThrowNotFoundError() {
+        int errorCode = 0;
+        try {
+            Registry.openKey(Registry.KEY_CURRENT_USER, NON_EXISTENT_SUB_KEY);
+        } catch (RegistryException e) {
+            e.printStackTrace(System.err);
+            errorCode = e.getErrorCode();
+        }
+        assertEquals(RegistryConst.ERROR_NOT_FOUND, errorCode);
     }
 
     @Test
-    public void methodInvocationShouldThrowUnavailable() {
-        int errorCode = 0;
-        try {
-            Registry.openKey(Registry.KEY_CURRENT_USER, "Windows/CurrentVersion");
+    public void openKeyShouldReturnHandle() {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
+            System.out.println(key.toString());
         } catch (RegistryException e) {
-            errorCode = e.getErrorCode();
+            e.printStackTrace(System.err);
         }
-
-        assertEquals(RegistryException.UNAVAILABLE, errorCode);
     }
 }

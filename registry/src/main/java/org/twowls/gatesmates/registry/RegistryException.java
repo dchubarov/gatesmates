@@ -38,7 +38,7 @@ public class RegistryException extends IOException {
     /** Windows registry is not available (i.e. current operating system is not Windows) */
     public static final int UNAVAILABLE = -1;
     /** Excepted value type does not match the actual */
-    public static final int VALUE_TYPE_MISMATCH = -2;
+    public static final int VALUE_TYPE_MISMATCH = -3;
 
     private final int errorCode;
 

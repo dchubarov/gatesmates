@@ -13,5 +13,11 @@
 
     <artifactId>gatesmates-util</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

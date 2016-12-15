@@ -15,33 +15,34 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry.test;
+package org.twowls.gatesmates.util;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.twowls.gatesmates.registry.Registry;
-import org.twowls.gatesmates.registry.RegistryException;
-
-import static org.junit.Assume.assumeTrue;
+import com.sun.jna.Native;
+import com.sun.jna.Platform;
 
 /**
- * <p>Registry tests.</p>
+ * <p>System APIs</p>
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
-public class RegistryTest {
+public class Gates {
 
-    @Before
-    public void assumeAvailable() {
-        assumeTrue(Registry.isAvailable());
+    public static boolean isAvailable() {
+        return Platform.isWindows();
     }
 
-    @Test
-    public void openKeyShouldReturnHandle() {
-        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, "Windows/CurrentVersion")) {
-            System.out.println(key.toString());
-        } catch (RegistryException e) {
-            e.printStackTrace(System.err);
+    public static class AdvApi32 {
+
+        public static native int RegOpenKeyExA(int handle, String path, int options, int access, int[] result);
+
+        public static native int RegQueryValueExA(int handle, String value, int[] ignore, int[] type, byte[] data, int[] size);
+
+        public static native int RegCloseKey(int handle);
+
+        static {
+            if (isAvailable()) {
+                Native.register(AdvApi32.class.getSimpleName());
+            }
         }
     }
 }
