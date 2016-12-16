@@ -22,7 +22,7 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.twowls.gatesmates.registry.publictests.HighLevelRegistryTests;
+import org.twowls.gatesmates.registry.publictests.RegistryTests;
 import org.twowls.gatesmates.util.Gates;
 import org.twowls.gatesmates.util.GatesConst;
 
@@ -34,13 +34,13 @@ import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.when;
 
 /**
- * <p>Executes registry tests defined in {@link HighLevelRegistryTests}, in mocked environment.</p>
+ * <p>Executes registry tests defined in {@link RegistryTests}, in mocked environment.</p>
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Gates.AdvApi32.class})
-public class MockedRegistryTests extends HighLevelRegistryTests {
+public class MockedRegistryTests extends RegistryTests {
 
     private static final int NORMAL_HANDLE_UPPER_BOUND = 10000;
 
@@ -51,26 +51,66 @@ public class MockedRegistryTests extends HighLevelRegistryTests {
         Registry.forceAvailable();
         PowerMockito.mockStatic(Gates.AdvApi32.class);
 
-        // when opening non-existent key, return not found error code
-        when(Gates.AdvApi32.RegOpenKeyExA(anyInt(), eq(NON_EXISTENT_SUB_KEY), anyInt(), anyInt(), any()))
-                .thenReturn(GatesConst.ERROR_NOT_FOUND);
+        // create mocks for native methods
+        mockOpenKey(NON_EXISTENT_SUB_KEY, GatesConst.ERROR_NOT_FOUND);
+        mockOpenKey(EXISTENT_SUB_KEY, GatesConst.ERROR_SUCCESS);
+        mockQueryStringValue(UNNAMED_PROPERTY, UNNAMED_PROPERTY_VALUE, GatesConst.ERROR_SUCCESS);
+        mockQueryStringValue(NAMED_STRING_PROPERTY, NAMED_STRING_PROPERTY_VALUE, GatesConst.ERROR_SUCCESS);
+        mockCloseKey();
+    }
 
-        // when opening existent sub-key generate virtual handle and return success code
-        when(Gates.AdvApi32.RegOpenKeyExA(anyInt(), eq(Registry.toWindowsPath(EXISTENT_SUB_KEY)), anyInt(), anyInt(), any()))
-                .thenAnswer(invocation -> {
-                    int[] data = invocation.getArgumentAt(4, int[].class);
-                    while (true) {
-                        int virtualHandle = new Random().nextInt(NORMAL_HANDLE_UPPER_BOUND);
-                        if (virtualHandle > 0 && !virtualHandles.contains(virtualHandle)) {
-                            virtualHandles.add(virtualHandle);
-                            data[0] = virtualHandle;
-                            break;
+    private static void mockOpenKey(final String subKey, final int retCode) {
+        when(Gates.AdvApi32.RegOpenKeyExA(anyInt(), eq(Registry.toWindowsPath(subKey)), anyInt(), anyInt(), any()))
+                .then(invocation -> {
+                    if (GatesConst.ERROR_SUCCESS == retCode) {
+                        int[] data = invocation.getArgumentAt(4, int[].class);
+                        while (true) {
+                            int virtualHandle = new Random().nextInt(NORMAL_HANDLE_UPPER_BOUND);
+                            if (virtualHandle > 0 && !virtualHandles.contains(virtualHandle)) {
+                                virtualHandles.add(virtualHandle);
+                                data[0] = virtualHandle;
+                                break;
+                            }
                         }
                     }
-                    return GatesConst.ERROR_SUCCESS;
+                    return retCode;
+                });
+    }
+
+    private static void mockQueryStringValue(final String valueName, final String value, final int retCode) {
+        // call without buffer for obtaining required buffer size
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(valueName), any(), any(), isNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    if (GatesConst.ERROR_SUCCESS == retCode) {
+                        int[] out = invocation.getArgumentAt(3, int[].class);
+                        out[0] = RegistryConst.REG_SZ;
+                        out = invocation.getArgumentAt(5, int[].class);
+                        out[0] = value.length() + 1;
+                    }
+                    return retCode;
                 });
 
-        // when closing key check whether handle is correct
+        // call with buffer for getting actual value data
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(valueName), any(), any(), isNotNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    if (GatesConst.ERROR_SUCCESS == retCode) {
+                        int[] out = invocation.getArgumentAt(3, int[].class);
+                        out[0] = RegistryConst.REG_SZ;
+
+                        out = invocation.getArgumentAt(5, int[].class);
+                        if (out[0] < value.length() + 1) {
+                            return GatesConst.ERROR_MORE_DATA;
+                        }
+
+                        byte[] data = invocation.getArgumentAt(4, byte[].class);
+                        System.arraycopy(value.getBytes(), 0, data, 0, value.length());
+                        data[value.length()] = 0;
+                    }
+                    return retCode;
+                });
+    }
+
+    private static void mockCloseKey() {
         when(Gates.AdvApi32.RegCloseKey(anyInt()))
                 .thenAnswer(invocation -> {
                     int handleToClose = invocation.getArgumentAt(0, Integer.class);
@@ -80,35 +120,6 @@ public class MockedRegistryTests extends HighLevelRegistryTests {
                         virtualHandles.remove(handleToClose);
                         return GatesConst.ERROR_SUCCESS;
                     }
-                });
-
-        // mock RegQueryValueExA - unnamed property, no buffer
-        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(UNNAMED_PROPERTY), any(), any(), isNull(byte[].class), any()))
-                .thenAnswer(invocation -> {
-                    int[] out = invocation.getArgumentAt(3, int[].class);
-                    out[0] = RegistryConst.REG_SZ;
-                    out = invocation.getArgumentAt(5, int[].class);
-                    out[0] = UNNAMED_PROPERTY_VALUE.length() + 1;
-                    return GatesConst.ERROR_SUCCESS;
-                });
-
-        // mock RegQueryValueExA - unnamed property, with buffer
-        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(UNNAMED_PROPERTY), any(), any(), isNotNull(byte[].class), any()))
-                .thenAnswer(invocation -> {
-                    int[] out = invocation.getArgumentAt(3, int[].class);
-                    out[0] = RegistryConst.REG_SZ;
-
-                    out = invocation.getArgumentAt(5, int[].class);
-                    if (out[0] < UNNAMED_PROPERTY_VALUE.length() + 1) {
-                        return GatesConst.ERROR_MORE_DATA;
-                    }
-
-                    byte[] data = invocation.getArgumentAt(4, byte[].class);
-                    System.arraycopy(UNNAMED_PROPERTY_VALUE.getBytes(), 0,
-                            data, 0, UNNAMED_PROPERTY_VALUE.length());
-                    data[UNNAMED_PROPERTY_VALUE.length()] = 0;
-
-                    return GatesConst.ERROR_SUCCESS;
                 });
     }
 }

@@ -31,7 +31,7 @@ import static org.junit.Assume.assumeFalse;
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
-public class RegistryUnavailableTests {
+public class UnavailableRegistryTests {
 
     @Before
     public void assumeUnavailable() {

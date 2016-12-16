@@ -30,13 +30,16 @@ import static org.junit.Assert.*;
  *
  * @author bubo &lt;bubo@twowls.org&gt;
  */
-public abstract class HighLevelRegistryTests {
+public abstract class RegistryTests {
 
     protected static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
     protected static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
 
     protected static final String UNNAMED_PROPERTY = "";
     protected static final String UNNAMED_PROPERTY_VALUE = "String-Value";
+
+    protected static final String NAMED_STRING_PROPERTY = "Named-Property";
+    protected static final String NAMED_STRING_PROPERTY_VALUE = "Named-String-Property-Value";
 
     @Test
     public void openNonExistentKeyShouldThrowNotFoundError() throws RegistryException {
@@ -78,6 +81,27 @@ public abstract class HighLevelRegistryTests {
             assertEquals(value, Registry.queryUnnamedValue(key));
             assertEquals(value, Registry.queryUnnamedValue(key, null));
             assertEquals(value, Registry.queryUnnamedValue(key, "Never-Returned"));
+        } catch (RegistryException e) {
+            e.printStackTrace(System.err);
+            throw e;
+        }
+    }
+
+    @Test
+    public void queryNamedPropertyReturnsStringValue() throws RegistryException {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY, false)) {
+            System.out.println("Key = " + key.toString());
+            assertFalse(key.toString().endsWith("x0)"));
+
+            String value = key.queryStringValue(NAMED_STRING_PROPERTY);
+            System.out.println("Named property '" + NAMED_STRING_PROPERTY + "' value = '" + value + "'");
+            assertTrue(value != null && !value.isEmpty());
+
+            assertEquals(value, key.queryStringValue(NAMED_STRING_PROPERTY,null));
+            assertEquals(value, key.queryStringValue(NAMED_STRING_PROPERTY,"Never-Returned"));
+            assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY));
+            assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY,null));
+            assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY,"Never-Returned"));
         } catch (RegistryException e) {
             e.printStackTrace(System.err);
             throw e;
