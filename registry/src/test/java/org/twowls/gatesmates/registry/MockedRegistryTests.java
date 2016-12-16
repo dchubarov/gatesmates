@@ -81,9 +81,33 @@ public class MockedRegistryTests extends HighLevelRegistryTests {
                     }
                 });
 
-        // mock RegQueryValueExA
-        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(""), any(), any(), any(), any()))
-                .thenReturn(GatesConst.ERROR_NOT_FOUND);
+        // mock RegQueryValueExA - unnamed property, no buffer
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(UNNAMED_PROPERTY), any(), any(), isNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    int[] out = invocation.getArgumentAt(3, int[].class);
+                    out[0] = RegistryConst.REG_SZ;
+                    out = invocation.getArgumentAt(5, int[].class);
+                    out[0] = UNNAMED_PROPERTY_VALUE.length() + 1;
+                    return GatesConst.ERROR_SUCCESS;
+                });
 
+        // mock RegQueryValueExA - unnamed property, with buffer
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(UNNAMED_PROPERTY), any(), any(), isNotNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    int[] out = invocation.getArgumentAt(3, int[].class);
+                    out[0] = RegistryConst.REG_SZ;
+
+                    out = invocation.getArgumentAt(5, int[].class);
+                    if (out[0] < UNNAMED_PROPERTY_VALUE.length() + 1) {
+                        return GatesConst.ERROR_MORE_DATA;
+                    }
+
+                    byte[] data = invocation.getArgumentAt(4, byte[].class);
+                    System.arraycopy(UNNAMED_PROPERTY_VALUE.getBytes(), 0,
+                            data, 0, UNNAMED_PROPERTY_VALUE.length());
+                    data[UNNAMED_PROPERTY_VALUE.length()] = 0;
+
+                    return GatesConst.ERROR_SUCCESS;
+                });
     }
 }

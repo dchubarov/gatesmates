@@ -19,7 +19,7 @@ package org.twowls.gatesmates.registry;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * <p>High level registry tests.</p>
@@ -30,6 +30,9 @@ public abstract class HighLevelRegistryTests {
 
     static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
     static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
+
+    static final String UNNAMED_PROPERTY = "";
+    static final String UNNAMED_PROPERTY_VALUE = "String-Value";
 
     @Test
     public void openNonExistentKeyShouldThrowNotFoundError() {
@@ -44,11 +47,28 @@ public abstract class HighLevelRegistryTests {
     }
 
     @Test
-    public void openKeyShouldReturnHandle() {
+    public void openKeyShouldReturnHandle() throws RegistryException {
         try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
-            System.out.println(key.toString());
+            System.out.println("Key = " + key.toString());
+            assertFalse(key.toString().endsWith("x0)"));
         } catch (RegistryException e) {
             e.printStackTrace(System.err);
+            throw e;
+        }
+    }
+
+    @Test
+    public void queryUnnamedPropertyReturnsStringValue() throws RegistryException {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
+            System.out.println("Key = " + key.toString());
+            assertFalse(key.toString().endsWith("x0)"));
+
+            String value = Registry.queryUnnamedValue(key);
+            System.out.println("Unnamed value = '" + value + "'");
+            assertTrue(value != null && !value.isEmpty());
+        } catch (RegistryException e) {
+            e.printStackTrace(System.err);
+            throw e;
         }
     }
 }

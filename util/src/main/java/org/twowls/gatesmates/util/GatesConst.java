@@ -31,5 +31,6 @@ public interface GatesConst {
     int ERROR_SUCCESS = 0;
     int ERROR_NOT_FOUND = 2;
     int ERROR_INVALID_HANDLE = 6;
+    int ERROR_MORE_DATA = 234;
 
 }
