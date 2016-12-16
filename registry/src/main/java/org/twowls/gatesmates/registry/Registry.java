@@ -196,6 +196,7 @@ public final class Registry implements RegistryConst {
     }
 
     public static void closeKey(Key key) throws RegistryException {
+        checkAvailable();
         if (key != null) {
             try {
                 int result = Gates.AdvApi32.RegCloseKey(key.handle);
