@@ -15,9 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry;
+package org.twowls.gatesmates.registry.publictests;
 
+import org.junit.Assert;
 import org.junit.Test;
+import org.twowls.gatesmates.registry.Registry;
+import org.twowls.gatesmates.registry.RegistryConst;
+import org.twowls.gatesmates.registry.RegistryException;
 
 import static org.junit.Assert.*;
 
@@ -28,27 +32,29 @@ import static org.junit.Assert.*;
  */
 public abstract class HighLevelRegistryTests {
 
-    static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
-    static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
+    protected static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
+    protected static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
 
-    static final String UNNAMED_PROPERTY = "";
-    static final String UNNAMED_PROPERTY_VALUE = "String-Value";
+    protected static final String UNNAMED_PROPERTY = "";
+    protected static final String UNNAMED_PROPERTY_VALUE = "String-Value";
 
     @Test
-    public void openNonExistentKeyShouldThrowNotFoundError() {
+    public void openNonExistentKeyShouldThrowNotFoundError() throws RegistryException {
+        Registry.Key key = null;
         int errorCode = 0;
         try {
-            Registry.openKey(Registry.KEY_CURRENT_USER, NON_EXISTENT_SUB_KEY);
+            key = Registry.openKey(Registry.KEY_LOCAL_MACHINE, NON_EXISTENT_SUB_KEY);
         } catch (RegistryException e) {
             e.printStackTrace(System.err);
             errorCode = e.getErrorCode();
         }
-        assertEquals(RegistryConst.ERROR_NOT_FOUND, errorCode);
+        Assert.assertEquals(RegistryConst.ERROR_NOT_FOUND, errorCode);
+        Registry.closeKey(key);
     }
 
     @Test
     public void openKeyShouldReturnHandle() throws RegistryException {
-        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY, false)) {
             System.out.println("Key = " + key.toString());
             assertFalse(key.toString().endsWith("x0)"));
         } catch (RegistryException e) {
@@ -59,13 +65,19 @@ public abstract class HighLevelRegistryTests {
 
     @Test
     public void queryUnnamedPropertyReturnsStringValue() throws RegistryException {
-        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY, false)) {
             System.out.println("Key = " + key.toString());
             assertFalse(key.toString().endsWith("x0)"));
 
-            String value = Registry.queryUnnamedValue(key);
+            String value = key.queryUnnamedValue();
             System.out.println("Unnamed value = '" + value + "'");
             assertTrue(value != null && !value.isEmpty());
+
+            assertEquals(value, key.queryUnnamedValue(null));
+            assertEquals(value, key.queryUnnamedValue("Never-Returned"));
+            assertEquals(value, Registry.queryUnnamedValue(key));
+            assertEquals(value, Registry.queryUnnamedValue(key, null));
+            assertEquals(value, Registry.queryUnnamedValue(key, "Never-Returned"));
         } catch (RegistryException e) {
             e.printStackTrace(System.err);
             throw e;

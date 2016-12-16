@@ -15,10 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry;
+package org.twowls.gatesmates.registry.publictests;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.twowls.gatesmates.registry.Registry;
+import org.twowls.gatesmates.registry.RegistryException;
 import org.twowls.gatesmates.util.Gates;
 
 import static org.junit.Assert.assertEquals;

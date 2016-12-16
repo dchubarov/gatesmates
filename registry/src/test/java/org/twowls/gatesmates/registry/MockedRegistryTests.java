@@ -22,6 +22,7 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.twowls.gatesmates.registry.publictests.HighLevelRegistryTests;
 import org.twowls.gatesmates.util.Gates;
 import org.twowls.gatesmates.util.GatesConst;
 

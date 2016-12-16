@@ -195,6 +195,19 @@ public final class Registry implements RegistryConst {
                 ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN).getInt();
     }
 
+    public static void closeKey(Key key) throws RegistryException {
+        if (key != null) {
+            try {
+                int result = Gates.AdvApi32.RegCloseKey(key.handle);
+                if (ERROR_SUCCESS != result) {
+                    throw new RegistryException(result, "Could not close key");
+                }
+            } finally {
+                key.handle = 0;
+            }
+        }
+    }
+
     static void forceAvailable() {
         available = true;
     }
@@ -249,16 +262,41 @@ public final class Registry implements RegistryConst {
             this.handle = handle;
         }
 
+        public Key openSubKey(String subPath) throws RegistryException {
+            return Registry.openKey(this, subPath);
+        }
+
+        public Key openSubKey(String subPath, boolean forWriting) throws RegistryException {
+            return Registry.openKey(this, subPath, forWriting);
+        }
+
+        public String queryUnnamedValue() throws RegistryException {
+            return Registry.queryUnnamedValue(this);
+        }
+
+        public String queryUnnamedValue(String fallback) throws RegistryException {
+            return Registry.queryUnnamedValue(this, fallback);
+        }
+
+        public String queryStringValue(String valueName) throws RegistryException {
+            return Registry.queryStringValue(this, valueName);
+        }
+
+        public String queryStringValue(String valueName, String fallback) throws RegistryException {
+            return Registry.queryStringValue(this, valueName, fallback);
+        }
+
+        public int queryIntValue(String valueName) throws RegistryException {
+            return Registry.queryIntValue(this, valueName);
+        }
+
+        public Integer queryIntValue(String valueName, Integer fallback) throws RegistryException {
+            return Registry.queryIntValue(this, valueName, fallback);
+        }
+
         @Override
         public void close() throws RegistryException {
-            try {
-                int result = Gates.AdvApi32.RegCloseKey(handle);
-                if (ERROR_SUCCESS != result) {
-                    throw new RegistryException(result, "Could not close key");
-                }
-            } finally {
-                handle = 0;
-            }
+            Registry.closeKey(this);
         }
 
         @Override
