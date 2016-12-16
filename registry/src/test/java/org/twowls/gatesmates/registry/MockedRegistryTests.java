@@ -80,5 +80,10 @@ public class MockedRegistryTests extends HighLevelRegistryTests {
                         return GatesConst.ERROR_SUCCESS;
                     }
                 });
+
+        // mock RegQueryValueExA
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(""), any(), any(), any(), any()))
+                .thenReturn(GatesConst.ERROR_NOT_FOUND);
+
     }
 }
