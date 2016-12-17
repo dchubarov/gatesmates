@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry.publictests;
+package org.twowls.gatesmates.registry.apitest;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -33,6 +33,7 @@ import static org.junit.Assert.*;
 public abstract class RegistryTests {
 
     protected static final String EXISTENT_SUB_KEY = "Windows/CurrentVersion";
+    protected static final String EXISTENT_SUB_SUB_KEY = "Explorer";
     protected static final String NON_EXISTENT_SUB_KEY = "$$NON-EXISTENT$$";
 
     protected static final String UNNAMED_PROPERTY = "";
@@ -40,6 +41,9 @@ public abstract class RegistryTests {
 
     protected static final String NAMED_STRING_PROPERTY = "Named-Property";
     protected static final String NAMED_STRING_PROPERTY_VALUE = "Named-String-Property-Value";
+
+    protected static final String NAMED_DWORD_PROPERTY = "Named-Int-Property";
+    protected static final int NAMED_DWORD_PROPERTY_VALUE = 1234;
 
     @Test
     public void openNonExistentKeyShouldThrowNotFoundError() throws RegistryException {
@@ -53,6 +57,24 @@ public abstract class RegistryTests {
         }
         Assert.assertEquals(RegistryConst.ERROR_NOT_FOUND, errorCode);
         Registry.closeKey(key);
+    }
+
+    @Test
+    public void testOpenSubKeyOfNonRootKey() throws RegistryException {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY)) {
+            try (Registry.Key childKey = key.openSubKey(EXISTENT_SUB_SUB_KEY)) {
+                System.out.println("ChildKey = " + childKey.toString());
+                assertFalse(childKey.toString().endsWith("x0)"));
+            }
+        }
+    }
+
+    @Test
+    public void testOpenSubKeyOfPredefinedKey() throws RegistryException {
+        try (Registry.Key childKey = Registry.KEY_CURRENT_USER.openSubKey(EXISTENT_SUB_KEY, false)) {
+            System.out.println("ChildKey = " + childKey.toString());
+            assertFalse(childKey.toString().endsWith("x0)"));
+        }
     }
 
     @Test
@@ -102,6 +124,27 @@ public abstract class RegistryTests {
             assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY));
             assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY,null));
             assertEquals(value, Registry.queryStringValue(key, NAMED_STRING_PROPERTY,"Never-Returned"));
+        } catch (RegistryException e) {
+            e.printStackTrace(System.err);
+            throw e;
+        }
+    }
+
+    @Test
+    public void testQueryNamedIntValue() throws RegistryException {
+        try (Registry.Key key = Registry.openKey(Registry.KEY_CURRENT_USER, EXISTENT_SUB_KEY, false)) {
+            System.out.println("Key = " + key.toString());
+            assertFalse(key.toString().endsWith("x0)"));
+
+            int value = key.queryIntValue(NAMED_DWORD_PROPERTY);
+            System.out.println("Named property '" + NAMED_DWORD_PROPERTY + "' value = '" + value + "'");
+            assertEquals(value, NAMED_DWORD_PROPERTY_VALUE);
+
+            assertEquals(Integer.valueOf(value), key.queryIntValue(NAMED_DWORD_PROPERTY, null));
+            assertEquals(Integer.valueOf(value), key.queryIntValue(NAMED_DWORD_PROPERTY, 0));
+            assertEquals(value, Registry.queryIntValue(key, NAMED_DWORD_PROPERTY));
+            assertEquals(Integer.valueOf(value), Registry.queryIntValue(key, NAMED_DWORD_PROPERTY,null));
+            assertEquals(Integer.valueOf(value), Registry.queryIntValue(key, NAMED_DWORD_PROPERTY, 0));
         } catch (RegistryException e) {
             e.printStackTrace(System.err);
             throw e;

@@ -22,10 +22,12 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.twowls.gatesmates.registry.publictests.RegistryTests;
+import org.twowls.gatesmates.registry.apitest.RegistryTests;
 import org.twowls.gatesmates.util.Gates;
 import org.twowls.gatesmates.util.GatesConst;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -43,6 +45,7 @@ import static org.mockito.Mockito.when;
 public class MockedRegistryTests extends RegistryTests {
 
     private static final int NORMAL_HANDLE_UPPER_BOUND = 10000;
+    private static final int DWORD_PROPERTY_SIZE_IN_BYTES = 4;
 
     private static Set<Integer> virtualHandles = new HashSet<>();
 
@@ -54,8 +57,10 @@ public class MockedRegistryTests extends RegistryTests {
         // create mocks for native methods
         mockOpenKey(NON_EXISTENT_SUB_KEY, GatesConst.ERROR_NOT_FOUND);
         mockOpenKey(EXISTENT_SUB_KEY, GatesConst.ERROR_SUCCESS);
+        mockOpenKey(EXISTENT_SUB_SUB_KEY, GatesConst.ERROR_SUCCESS);
         mockQueryStringValue(UNNAMED_PROPERTY, UNNAMED_PROPERTY_VALUE, GatesConst.ERROR_SUCCESS);
         mockQueryStringValue(NAMED_STRING_PROPERTY, NAMED_STRING_PROPERTY_VALUE, GatesConst.ERROR_SUCCESS);
+        mockQueryIntValue(NAMED_DWORD_PROPERTY, NAMED_DWORD_PROPERTY_VALUE, GatesConst.ERROR_SUCCESS);
         mockCloseKey();
     }
 
@@ -105,6 +110,39 @@ public class MockedRegistryTests extends RegistryTests {
                         byte[] data = invocation.getArgumentAt(4, byte[].class);
                         System.arraycopy(value.getBytes(), 0, data, 0, value.length());
                         data[value.length()] = 0;
+                    }
+                    return retCode;
+                });
+    }
+
+    private static void mockQueryIntValue(final String valueName, final int value, final int retCode) {
+        // call without buffer for obtaining required buffer size
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(valueName), any(), any(), isNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    if (GatesConst.ERROR_SUCCESS == retCode) {
+                        int[] out = invocation.getArgumentAt(3, int[].class);
+                        out[0] = RegistryConst.REG_DWORD;
+                        out = invocation.getArgumentAt(5, int[].class);
+                        out[0] = DWORD_PROPERTY_SIZE_IN_BYTES;
+                    }
+                    return retCode;
+                });
+
+        // call with buffer for getting actual value data
+        when(Gates.AdvApi32.RegQueryValueExA(anyInt(), eq(valueName), any(), any(), isNotNull(byte[].class), any()))
+                .thenAnswer(invocation -> {
+                    if (GatesConst.ERROR_SUCCESS == retCode) {
+                        int[] out = invocation.getArgumentAt(3, int[].class);
+                        out[0] = RegistryConst.REG_DWORD;
+
+                        out = invocation.getArgumentAt(5, int[].class);
+                        if (out[0] < DWORD_PROPERTY_SIZE_IN_BYTES) {
+                            return GatesConst.ERROR_MORE_DATA;
+                        }
+                        byte[] data = invocation.getArgumentAt(4, byte[].class);
+                        System.arraycopy(ByteBuffer.allocate(DWORD_PROPERTY_SIZE_IN_BYTES)
+                                        .order(ByteOrder.LITTLE_ENDIAN).putInt(value).array(),
+                                0, data, 0, DWORD_PROPERTY_SIZE_IN_BYTES);
                     }
                     return retCode;
                 });

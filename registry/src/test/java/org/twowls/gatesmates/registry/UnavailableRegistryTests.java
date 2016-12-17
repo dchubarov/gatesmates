@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.twowls.gatesmates.registry.publictests;
+package org.twowls.gatesmates.registry;
 
 import org.junit.Before;
 import org.junit.Test;
